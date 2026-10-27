@@ -2,12 +2,16 @@ package de.veil.browser
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.*
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.mozilla.geckoview.*
-import java.net.URLEncoder
 
 class MainActivity : Activity() {
     private data class Tab(
@@ -16,6 +20,7 @@ class MainActivity : Activity() {
         var back: Boolean = false,
         var forward: Boolean = false
     )
+    private var backCallback: OnBackInvokedCallback? = null
     private val tabs = mutableListOf<Tab>()
     private var selected = -1
     private lateinit var browser: GeckoView
@@ -26,20 +31,21 @@ class MainActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.setOnApplyWindowInsetsListener { view, insets ->
-            view.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
-                insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val padding = insets.getInsets(WindowInsetsCompat.Type.systemBars() or
+                WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())
+            view.setPadding(padding.left, padding.top, padding.right, padding.bottom)
             insets
         }
         val toolbar = LinearLayout(this)
         address = EditText(this).apply {
             setSingleLine(true)
-            hint = "URL oder Suche"
+            setHint(R.string.address_hint)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
             imeOptions = EditorInfo.IME_ACTION_GO
             setOnEditorActionListener { _, action, _ ->
                 if (action == EditorInfo.IME_ACTION_GO) {
-                    active?.session?.loadUri(resolveInput(text.toString()))
+                    active?.session?.loadUri(AddressResolver.resolve(text.toString()))
                     clearFocus()
                     val keyboard = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                     keyboard.hideSoftInputFromWindow(windowToken, 0)
@@ -51,7 +57,7 @@ class MainActivity : Activity() {
         tabsButton = Button(this).apply { setOnClickListener { showTabs() } }
         toolbar.addView(tabsButton)
         toolbar.addView(Button(this).apply {
-            text = "Menü"
+            setText(R.string.menu)
             setOnClickListener { showMenu(it) }
         })
         root.addView(toolbar)
@@ -63,17 +69,8 @@ class MainActivity : Activity() {
         if (restored.isNullOrEmpty()) newTab("https://www.mozilla.org")
         else {
             restored.forEach { newTab(it) }
-            selectTab((state?.getInt("selected", 0) ?: 0).coerceIn(tabs.indices))
+            selectTab(state.getInt("selected", 0).coerceIn(tabs.indices))
         }
-    }
-
-    private fun resolveInput(input: String): String {
-        val text = input.trim()
-        if (text.isEmpty()) return "about:blank"
-        val uri = android.net.Uri.parse(text)
-        if (uri.scheme == "https" || uri.scheme == "http") return text
-        if (!text.contains(' ') && text.contains('.') && !text.contains(':')) return "https://$text"
-        return "https://duckduckgo.com/?q=" + URLEncoder.encode(text, "UTF-8")
     }
 
     private fun newTab(url: String = "https://www.mozilla.org") {
@@ -87,7 +84,14 @@ class MainActivity : Activity() {
                 tab.url = url ?: "about:blank"
                 if (active === tab) address.setText(tab.url)
             }
-            override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) { tab.back = canGoBack }
+            override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
+                tab.back = canGoBack
+                if (active === tab) updateBackCallback()
+            }
+            override fun onLoadError(session: GeckoSession, uri: String?, error: WebRequestError): GeckoResult<String> {
+                val html = getString(R.string.load_error_html)
+                return GeckoResult.fromValue("data:text/html;charset=utf-8," + android.net.Uri.encode(html))
+            }
             override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) { tab.forward = canGoForward }
         }
         session.open((application as BrowserApplication).runtime)
@@ -104,7 +108,8 @@ class MainActivity : Activity() {
         browser.setSession(tabs[index].session)
         tabs[index].session.setActive(true)
         address.setText(tabs[index].url)
-        tabsButton.text = "Tabs (${tabs.size})"
+        tabsButton.text = getString(R.string.tab_count, tabs.size)
+        updateBackCallback()
     }
 
     private fun closeCurrentTab() {
@@ -117,19 +122,19 @@ class MainActivity : Activity() {
     }
 
     private fun showTabs() {
-        AlertDialog.Builder(this).setTitle("Offene Tabs")
+        AlertDialog.Builder(this).setTitle(R.string.open_tabs)
             .setItems(tabs.mapIndexed { i, tab -> "${i + 1}: ${tab.url}" }.toTypedArray()) { _, index -> selectTab(index) }
-            .setPositiveButton("Neuer Tab") { _, _ -> newTab() }
-            .setNegativeButton("Schließen", null).show()
+            .setPositiveButton(R.string.new_tab) { _, _ -> newTab() }
+            .setNegativeButton(R.string.dismiss, null).show()
     }
 
     private fun showMenu(anchor: View) {
         PopupMenu(this, anchor).apply {
-            menu.add(0, 1, 0, "Zurück").isEnabled = active?.back == true
-            menu.add(0, 2, 1, "Vorwärts").isEnabled = active?.forward == true
-            menu.add(0, 3, 2, "Neu laden")
-            menu.add(0, 4, 3, "Neuer Tab")
-            menu.add(0, 5, 4, "Tab schließen")
+            menu.add(0, 1, 0, R.string.back).isEnabled = active?.back == true
+            menu.add(0, 2, 1, R.string.forward).isEnabled = active?.forward == true
+            menu.add(0, 3, 2, R.string.reload)
+            menu.add(0, 4, 3, R.string.new_tab)
+            menu.add(0, 5, 4, R.string.close_tab)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     1 -> active?.session?.goBack()
@@ -145,6 +150,17 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun updateBackCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+        backCallback = if (active?.back == true) {
+            OnBackInvokedCallback { active?.session?.goBack() }.also {
+                onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, it)
+            }
+        } else null
+    }
+
+    @Suppress("DEPRECATION") // Required fallback on Android 8–12.
     @Deprecated("Legacy back navigation")
     override fun onBackPressed() {
         if (active?.back == true) active?.session?.goBack() else super.onBackPressed()
@@ -157,6 +173,9 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+        }
         browser.releaseSession()
         tabs.forEach { it.session.close() }
         tabs.clear()
