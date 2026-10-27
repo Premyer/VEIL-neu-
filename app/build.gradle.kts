@@ -1,10 +1,9 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 android {
     namespace = "de.veil.browser"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "de.veil.browser"
         minSdk = 26
@@ -16,8 +15,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+}
+kotlin {
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 dependencies {
+    implementation("androidx.core:core:1.19.1")
+    testImplementation("junit:junit:4.13.2")
     implementation("org.mozilla.geckoview:geckoview:159.0.20261022150525")
 }

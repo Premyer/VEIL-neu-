@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VEIL</string>
+    <string name="address_hint">URL oder Suche</string>
+    <string name="menu">Menü</string>
+    <string name="tab_count">Tabs (%1$d)</string>
+    <string name="open_tabs">Offene Tabs</string>
+    <string name="new_tab">Neuer Tab</string>
+    <string name="dismiss">Schließen</string>
+    <string name="back">Zurück</string>
+    <string name="forward">Vorwärts</string>
+    <string name="reload">Neu laden</string>
+    <string name="close_tab">Tab schließen</string>
+    <string name="load_error_html"><![CDATA[<!doctype html><html lang=\"de\"><meta charset=\"utf-8\">
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+        <title>Ladefehler</title><h1>Seite konnte nicht geladen werden</h1>
+        <p>Prüfe die Adresse und deine Internetverbindung. VEIL benötigt eine sichere HTTPS-Verbindung.</p>
+        <p>Du kannst die Seite über das Menü erneut laden oder eine andere Adresse eingeben.</p></html>]]></string>
+</resources>

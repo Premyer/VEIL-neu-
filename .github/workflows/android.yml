@@ -38,19 +38,19 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3.2.2
         with:
-          cmdline-tools-version: '12266719'
+          cmdline-tools-version: '16111833'
           packages: 'platform-tools'
 
       - name: Install required Android SDK packages
         run: |
           set -euo pipefail
           mkdir -p build-diagnostics
-          sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 2>&1 | tee build-diagnostics/sdk-install.log
+          sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0' 2>&1 | tee build-diagnostics/sdk-install.log
 
-      - name: Set up Gradle 8.11.1
+      - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'
+          gradle-version: '9.3.1'
 
       - name: Record build environment
         run: |
@@ -64,11 +64,11 @@ jobs:
             df -h .
           } 2>&1 | tee build-diagnostics/environment.log
 
-      - name: Build debug APK
+      - name: Build and verify debug APK
         run: |
           set -euo pipefail
           mkdir -p build-diagnostics
-          gradle :app:assembleDebug --no-daemon --max-workers=2 --stacktrace --console=plain 2>&1 | tee build-diagnostics/gradle-build.log
+          gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest --no-daemon --max-workers=2 --stacktrace --console=plain 2>&1 | tee build-diagnostics/gradle-build.log
 
       - name: Collect APK and checksums
         run: |
