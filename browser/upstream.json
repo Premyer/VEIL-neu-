@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/mozilla-firefox/firefox.git",
+  "tag": "FIREFOX_159_0_RELEASE",
+  "revision": "9a2dc53c369c7ae5172018b35988e1d2ffeff402",
+  "archive": "https://codeload.github.com/mozilla-firefox/firefox/tar.gz/9a2dc53c369c7ae5172018b35988e1d2ffeff402",
+  "sha256": "8aac96067bafbf0799894f5cd6bb0f1389a8cdb50c8c567433fa9d67cc301723",
+  "license": "MPL-2.0"
+}

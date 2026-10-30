@@ -14,20 +14,28 @@ concurrency:
 
 jobs:
   build:
-    name: Build VEIL debug APK
+    name: Build and check VEIL ARM64 APK
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     defaults:
       run:
         shell: bash
     env:
-      GRADLE_OPTS: -Dorg.gradle.daemon=false
+      VEIL_OUTPUT_DIR: ${{ github.workspace }}/apk-output
 
     steps:
-      - name: Checkout source
+      - name: Select source cache
+        run: echo "VEIL_FIREFOX_DIR=$RUNNER_TEMP/repos/veil-firefox" >> "$GITHUB_ENV"
+
+      - name: Checkout VEIL source
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -35,66 +43,46 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3.2.2
         with:
           cmdline-tools-version: '16111833'
           packages: 'platform-tools'
 
       - name: Install required Android SDK packages
-        run: |
-          set -euo pipefail
-          mkdir -p build-diagnostics
-          sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0' 2>&1 | tee build-diagnostics/sdk-install.log
+        run: sdkmanager 'platforms;android-37.2' 'build-tools;37.0.0'
 
-      - name: Set up Gradle 9.3.1
+      - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.3.1'
+          gradle-version: '9.8.1'
 
-      - name: Record build environment
+      - name: Build VEIL from pinned Firefox source
+        run: bash browser/build.sh --setup
+
+      - name: Run build-tool tests, affected Android tests and lint
+        run: bash browser/check.sh
+
+      - name: Attach source identity
         run: |
-          set -euo pipefail
-          mkdir -p build-diagnostics
-          {
-            git rev-parse HEAD
-            java -version
-            gradle --version
-            sdkmanager --version
-            df -h .
-          } 2>&1 | tee build-diagnostics/environment.log
+          git rev-parse HEAD > apk-output/VEIL_SOURCE_COMMIT.txt
+          cp browser/upstream.json apk-output/FIREFOX_SOURCE.json
 
-      - name: Build and verify debug APK
-        run: |
-          set -euo pipefail
-          mkdir -p build-diagnostics
-          gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest --no-daemon --max-workers=2 --stacktrace --console=plain 2>&1 | tee build-diagnostics/gradle-build.log
-
-      - name: Collect APK and checksums
-        run: |
-          set -euo pipefail
-          mkdir -p apk-output
-          find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -exec cp {} apk-output/ \;
-          compgen -G 'apk-output/*.apk' > /dev/null
-          (cd apk-output && sha256sum ./*.apk > SHA256SUMS.txt)
-          git rev-parse HEAD > apk-output/SOURCE_COMMIT.txt
-
-      - name: Upload debug APK
+      - name: Upload verified debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: VEIL-debug-${{ github.run_number }}-${{ github.sha }}
+          name: VEIL-arm64-debug-${{ github.run_number }}-${{ github.sha }}
           path: apk-output/
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload diagnostics even on failure
+      - name: Upload diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: VEIL-diagnostics-${{ github.run_number }}-${{ github.sha }}
           path: |
-            build-diagnostics/
-            app/build/reports/
-            build/reports/
+            ${{ runner.temp }}/repos/veil-firefox/artifacts/*.log
+            ${{ runner.temp }}/repos/veil-firefox/objdir-frontend/gradle/build/mobile/android/fenix/app/reports/
           if-no-files-found: ignore
           retention-days: 14

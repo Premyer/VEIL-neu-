@@ -1,0 +1,863 @@
+--- a/mobile/android/fenix/app/build.gradle
++++ b/mobile/android/fenix/app/build.gradle
+@@ -46,11 +46,11 @@
+             arg("room.schemaLocation", "$projectDir/schemas".toString())
+         }
+ 
+-        applicationId "org.mozilla"
++        applicationId "de.veil.browser"
+         minSdk config.minSdkVersion
+         targetSdk config.targetSdkVersion
+-        versionCode 1
+-        versionName Config.generateDebugVersionName()
++        versionCode 2
++        versionName "0.2.0"
+         vectorDrawables.useSupportLibrary = true
+         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+         testInstrumentationRunnerArguments clearPackageData: 'true'
+@@ -66,7 +66,7 @@
+         // This should be the base URL used to call the AMO API.
+         buildConfigField "String", "AMO_SERVER_URL", "\"https://services.addons.mozilla.org\""
+ 
+-        def deepLinkSchemeValue = "fenix-dev"
++        def deepLinkSchemeValue = "veil"
+         buildConfigField "String", "DEEP_LINK_SCHEME", "\"$deepLinkSchemeValue\""
+ 
+         manifestPlaceholders = [
+@@ -107,14 +107,14 @@
+         debug {
+             shrinkResources = false
+             minifyEnabled = false
+-            applicationIdSuffix ".fenix.debug"
++            applicationIdSuffix ""
+             resValue "bool", "IS_DEBUG", "true"
+             pseudoLocalesEnabled = true
+         }
+         nightly releaseTemplate >> {
+-            applicationIdSuffix ".fenix"
++            applicationIdSuffix ".nightly"
+             buildConfigField "boolean", "USE_RELEASE_VERSIONING", "true"
+-            def deepLinkSchemeValue = "fenix-nightly"
++            def deepLinkSchemeValue = "veil-nightly"
+             buildConfigField "String", "DEEP_LINK_SCHEME", "\"$deepLinkSchemeValue\""
+             manifestPlaceholders.putAll([
+                     "deepLinkScheme": deepLinkSchemeValue
+@@ -122,35 +122,19 @@
+         }
+         beta releaseTemplate >> {
+             buildConfigField "boolean", "USE_RELEASE_VERSIONING", "true"
+-            applicationIdSuffix ".firefox_beta"
+-            def deepLinkSchemeValue = "fenix-beta"
++            applicationIdSuffix ".beta"
++            def deepLinkSchemeValue = "veil-beta"
+             buildConfigField "String", "DEEP_LINK_SCHEME", "\"$deepLinkSchemeValue\""
+             manifestPlaceholders.putAll([
+-                    // This release type is meant to replace Firefox (Beta channel) and therefore needs to inherit
+-                    // its sharedUserId for all eternity. See:
+-                    // https://searchfox.org/mozilla-esr68/search?q=moz_android_shared_id&case=false&regexp=false&path=
+-                    // Shipping an app update without sharedUserId can have
+-                    // fatal consequences. For example see:
+-                    //  - https://issuetracker.google.com/issues/36924841
+-                    //  - https://issuetracker.google.com/issues/36905922
+-                    "sharedUserId": "org.mozilla.firefox.sharedID",
+                     "deepLinkScheme": deepLinkSchemeValue,
+             ])
+         }
+         release releaseTemplate >> {
+             buildConfigField "boolean", "USE_RELEASE_VERSIONING", "true"
+-            applicationIdSuffix ".firefox"
+-            def deepLinkSchemeValue = "fenix"
++            applicationIdSuffix ""
++            def deepLinkSchemeValue = "veil"
+             buildConfigField "String", "DEEP_LINK_SCHEME", "\"$deepLinkSchemeValue\""
+             manifestPlaceholders.putAll([
+-                    // This release type is meant to replace Firefox (Release channel) and therefore needs to inherit
+-                    // its sharedUserId for all eternity. See:
+-                    // https://searchfox.org/mozilla-esr68/search?q=moz_android_shared_id&case=false&regexp=false&path=
+-                    // Shipping an app update without sharedUserId can have
+-                    // fatal consequences. For example see:
+-                    //  - https://issuetracker.google.com/issues/36924841
+-                    //  - https://issuetracker.google.com/issues/36905922
+-                    "sharedUserId": "org.mozilla.firefox.sharedID",
+                     "deepLinkScheme": deepLinkSchemeValue,
+             ])
+         }
+@@ -158,7 +142,7 @@
+             initWith buildTypes.nightly
+             shrinkResources = false
+             minifyEnabled = false
+-            applicationIdSuffix ".fenix"
++            applicationIdSuffix ".nightly"
+             signingConfig = signingConfigs.debug
+             debuggable false
+             buildConfigField "boolean", "IS_BENCHMARK_BUILD", "true"
+@@ -343,8 +327,8 @@
+ // -------------------------------------------------------------------------------------------------
+ 
+ android.defaultConfig.with {
+-    buildConfigField 'boolean', 'CRASH_REPORTING', 'true'
+-    buildConfigField 'boolean', 'TELEMETRY', 'true'
++    buildConfigField 'boolean', 'CRASH_REPORTING', 'false'
++    buildConfigField 'boolean', 'TELEMETRY', 'false'
+ 
+     // Reading the sentry token from a local file (if it exists). In a release task on taskcluster it will be available.
+     buildConfigField 'String', 'SENTRY_TOKEN', 'null'
+--- a/mobile/android/fenix/app/src/beta/AndroidManifest.xml
++++ b/mobile/android/fenix/app/src/beta/AndroidManifest.xml
+@@ -3,13 +3,6 @@
+    - License, v. 2.0. If a copy of the MPL was not distributed with this
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ 
+-<!--
+-  sharedUserId: This release type is meant to replace Firefox (Beta channel) and therefore needs to inherit
+-                its sharedUserId for all eternity. Shipping an app update without sharedUserId can have
+-                fatal consequences. For example see:
+-                - https://issuetracker.google.com/issues/36924841
+-                - https://issuetracker.google.com/issues/36905922
+--->
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:sharedUserId="${sharedUserId}">
++<!-- VEIL uses its own application identity and does not share a Mozilla UID. -->
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ </manifest>
+--- a/mobile/android/fenix/app/src/beta/res/values/static_strings.xml
++++ b/mobile/android/fenix/app/src/beta/res/values/static_strings.xml
+@@ -4,5 +4,5 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <resources>
+     <!-- Name of the application -->
+-    <string name="app_name" translatable="false">Firefox Beta</string>
++    <string name="app_name" translatable="false">VEIL</string>
+ </resources>
+--- a/mobile/android/fenix/app/src/debug/res/values/dimens.xml
++++ b/mobile/android/fenix/app/src/debug/res/values/dimens.xml
+@@ -3,5 +3,4 @@
+    - License, v. 2.0. If a copy of the MPL was not distributed with this
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <resources>
+-  <dimen name="wordmark_text_height">28dp</dimen>
+ </resources>
+--- a/mobile/android/fenix/app/src/main/AndroidManifest.xml
++++ b/mobile/android/fenix/app/src/main/AndroidManifest.xml
+@@ -70,7 +70,7 @@
+         android:allowBackup="false"
+         android:dataExtractionRules="@xml/data_extraction_rules"
+         android:fullBackupContent="false"
+-        android:icon="@mipmap/ic_launcher"
++        android:icon="@drawable/veil_launcher"
+         android:label="@string/app_name"
+         android:roundIcon="@mipmap/ic_launcher_round"
+         android:supportsRtl="true"
+--- a/mobile/android/fenix/app/src/main/java/org/mozilla/fenix/home/ui/WordmarkAndLogo.kt
++++ b/mobile/android/fenix/app/src/main/java/org/mozilla/fenix/home/ui/WordmarkAndLogo.kt
+@@ -8,12 +8,12 @@
+ import androidx.compose.foundation.layout.Row
+ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.padding
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.Color
+-import androidx.compose.ui.graphics.ColorFilter
+-import androidx.compose.ui.res.dimensionResource
+ import androidx.compose.ui.res.painterResource
+ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.semantics.SemanticsPropertyKey
+@@ -21,7 +21,9 @@
+ import androidx.compose.ui.semantics.semantics
+ import androidx.compose.ui.semantics.testTag
+ import androidx.compose.ui.semantics.testTagsAsResourceId
++import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
+ import org.mozilla.fenix.R
+ import org.mozilla.fenix.home.ui.HomepageTestTag.HOMEPAGE_WORDMARK_LOGO
+ import org.mozilla.fenix.home.ui.HomepageTestTag.HOMEPAGE_WORDMARK_TEXT
+@@ -34,7 +36,7 @@
+ private val LOGO_PADDING = 10.dp
+ 
+ /**
+- * The Firefox logo followed by the Firefox wordmark.
++ * The VEIL logo followed by its wordmark.
+  *
+  * @param wordmarkTextColor Tint applied to the wordmark text, or null to leave it untinted.
+  * @param modifier [Modifier] to be applied to the layout.
+@@ -71,15 +73,15 @@
+ 
+ @Composable
+ internal fun Wordmark(color: Color?) {
+-    Image(
+-        modifier =
+-            Modifier.semantics {
+-                    testTagsAsResourceId = true
+-                    testTag = HOMEPAGE_WORDMARK_TEXT
+-                }
+-                .height(dimensionResource(R.dimen.wordmark_text_height)),
+-        painter = painterResource(getAttr(R.attr.fenixWordmarkText)),
+-        colorFilter = color?.let { ColorFilter.tint(it) },
+-        contentDescription = stringResource(R.string.app_name),
++    Text(
++        text = stringResource(R.string.app_name),
++        modifier = Modifier.semantics {
++            testTagsAsResourceId = true
++            testTag = HOMEPAGE_WORDMARK_TEXT
++        },
++        color = color ?: MaterialTheme.colorScheme.onSurface,
++        style = MaterialTheme.typography.headlineMedium,
++        fontWeight = FontWeight.Bold,
++        letterSpacing = 4.sp,
+     )
+ }
+--- a/mobile/android/fenix/app/src/main/java/org/mozilla/fenix/iconpicker/AppIcon.kt
++++ b/mobile/android/fenix/app/src/main/java/org/mozilla/fenix/iconpicker/AppIcon.kt
+@@ -29,7 +29,7 @@
+  */
+ enum class AppIcon(
+     val aliasSuffix: String,
+-    @param:DrawableRes val iconForegroundId: Int = R.drawable.ic_firefox,
++    @param:DrawableRes val iconForegroundId: Int = R.drawable.veil_mark,
+     val iconBackground: IconBackground = IconBackground.Color(colorResId = colorsR.color.novaWhite),
+     @param:StringRes val titleId: Int,
+     @param:StringRes val subtitleId: Int? = null,
+--- a/mobile/android/fenix/app/src/main/java/org/mozilla/fenix/theme/FirefoxTheme.kt
++++ b/mobile/android/fenix/app/src/main/java/org/mozilla/fenix/theme/FirefoxTheme.kt
+@@ -13,10 +13,6 @@
+ import mozilla.components.compose.base.theme.AcornTheme
+ import mozilla.components.compose.base.theme.AcornTypography
+ import mozilla.components.compose.base.theme.Theme
+-import mozilla.components.compose.base.theme.acornDarkColorScheme
+-import mozilla.components.compose.base.theme.acornLightColorScheme
+-import mozilla.components.compose.base.theme.acornOledColorScheme
+-import mozilla.components.compose.base.theme.acornPrivateColorScheme
+ import mozilla.components.compose.base.theme.darkAcornGradientScheme
+ import mozilla.components.compose.base.theme.darkColorPalette
+ import mozilla.components.compose.base.theme.layout.AcornLayout
+@@ -47,13 +43,7 @@
+             Theme.Private -> privateColorPalette
+         }
+ 
+-    val colorScheme: ColorScheme =
+-        when (theme) {
+-            Theme.Light -> acornLightColorScheme()
+-            Theme.Dark -> acornDarkColorScheme()
+-            Theme.Oled -> acornOledColorScheme()
+-            Theme.Private -> acornPrivateColorScheme()
+-        }
++    val colorScheme: ColorScheme = veilColorScheme(theme)
+ 
+     val gradients: AcornGradientScheme =
+         when (theme) {
+@@ -73,7 +63,14 @@
+ 
+     ProvideFirefoxTokens(tabGroupColors = tabGroupColors) {
+         AcornTheme(
+-            colors = colors,
++            colors = colors.copy(
++                iconPrivate = veilColorScheme(Theme.Private).primary,
++                surfaceDimVariant = colorScheme.surfaceDim,
++                surfaceContainerSelected = colorScheme.secondaryContainer,
++                autofillText = colorScheme.primaryContainer,
++                selectedText = colorScheme.secondaryContainer,
++                sheetOutline = colorScheme.surfaceContainerHigh,
++            ),
+             colorScheme = colorScheme,
+             gradients = gradients,
+             content = content,
+--- a/mobile/android/fenix/app/src/main/java/org/mozilla/fenix/utils/Settings.kt
++++ b/mobile/android/fenix/app/src/main/java/org/mozilla/fenix/utils/Settings.kt
+@@ -1278,7 +1278,7 @@
+     var shouldUseDarkTheme by
+         booleanPreference(
+             appContext.getPreferenceKey(R.string.pref_key_dark_theme),
+-            default = false,
++            default = true,
+         )
+ 
+     var shouldUseOledTheme by
+@@ -1296,7 +1296,7 @@
+     var shouldUseHttpsOnly by
+         booleanPreference(
+             appContext.getPreferenceKey(R.string.pref_key_https_only),
+-            default = false,
++            default = true,
+         )
+ 
+     var shouldUseHttpsOnlyInAllTabs by
+@@ -1646,7 +1646,7 @@
+     var shouldUseBottomToolbar by
+         booleanPreference(
+             key = appContext.getPreferenceKey(R.string.pref_key_toolbar_bottom),
+-            default = { FxNimbus.features.defaultBottomToolbar.value().enabled },
++            default = { true },
+             persistDefaultIfNotExists = true,
+         )
+ 
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher.xml
+@@ -4,6 +4,6 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+     <background android:drawable="@color/ic_launcher_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_alternative.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_alternative.xml
+@@ -4,6 +4,6 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+     <background android:drawable="@color/novaWhite"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_blue_hour.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_blue_hour.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_gradient_blue_hour_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_golden_hour.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_golden_hour.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_gradient_golden_hour_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_midnight.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_midnight.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_gradient_midnight_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_northern_lights.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_northern_lights.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_gradient_northern_lights_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_sunrise.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_sunrise.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_gradient_sunrise_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_sunset.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_sunset.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_gradient_sunset_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_twilight.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_gradient_twilight.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_gradient_twilight_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml
+@@ -4,6 +4,6 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+     <background android:drawable="@color/ic_launcher_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_round_alternative.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_round_alternative.xml
+@@ -4,6 +4,6 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+     <background android:drawable="@color/novaWhite"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_blue.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_blue.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_solid_blue_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_dark.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_dark.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@color/novaBlack"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_green.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_green.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_solid_green_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_light.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_light.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@color/novaWhite"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_purple.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_purple.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_solid_purple_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_purple_dark.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_purple_dark.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_solid_purple_dark_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_red.xml
++++ b/mobile/android/fenix/app/src/main/res/mipmap-anydpi/ic_launcher_solid_red.xml
+@@ -5,6 +5,6 @@
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+     <background android:drawable="@drawable/ic_launcher_solid_red_background"/>
+-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
++    <foreground android:drawable="@drawable/veil_mark"/>
+     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+ </adaptive-icon>
+--- a/mobile/android/fenix/app/src/main/res/values-night/colors.xml
++++ b/mobile/android/fenix/app/src/main/res/values-night/colors.xml
+@@ -4,25 +4,25 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <resources xmlns:tools="http://schemas.android.com/tools">
+     <!-- Material3 color variables -->
+-    <color name="fx_mobile_primary">@color/novaViolet20</color>
+-    <color name="fx_mobile_on_primary">@color/novaGray80</color>
+-    <color name="fx_mobile_primary_container">@color/novaViolet60</color>
+-    <color name="fx_mobile_on_primary_container">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_primary_inverse">@color/novaViolet70</color>
+-    <color name="fx_mobile_secondary">@color/novaGray20</color>
++    <color name="fx_mobile_primary">#62DFC5</color>
++    <color name="fx_mobile_on_primary">#002F28</color>
++    <color name="fx_mobile_primary_container">#164C42</color>
++    <color name="fx_mobile_on_primary_container">#C3FBEA</color>
++    <color name="fx_mobile_primary_inverse">#006B60</color>
++    <color name="fx_mobile_secondary">#B9CEC5</color>
+     <color name="fx_mobile_on_secondary">@color/novaGray80</color>
+-    <color name="fx_mobile_secondary_container">@color/novaVioletDesaturated70</color>
+-    <color name="fx_mobile_on_secondary_container">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_tertiary">@color/novaViolet30</color>
++    <color name="fx_mobile_secondary_container">#294139</color>
++    <color name="fx_mobile_on_secondary_container">#DCEEE5</color>
++    <color name="fx_mobile_tertiary">#9CCBEB</color>
+     <color name="fx_mobile_on_tertiary">@color/novaGray80</color>
+-    <color name="fx_mobile_tertiary_container">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_on_tertiary_container">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_background">@color/novaGray75</color>
+-    <color name="fx_mobile_on_background">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_surface">@color/novaGray75</color>
+-    <color name="fx_mobile_on_surface">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_surface_variant">@color/novaGray65</color>
+-    <color name="fx_mobile_on_surface_variant">@color/novaVioletDesaturated0A70</color>
++    <color name="fx_mobile_tertiary_container">#1B4058</color>
++    <color name="fx_mobile_on_tertiary_container">#D4E9FF</color>
++    <color name="fx_mobile_background">#0B1514</color>
++    <color name="fx_mobile_on_background">#E2F1EB</color>
++    <color name="fx_mobile_surface">#0B1514</color>
++    <color name="fx_mobile_on_surface">#E2F1EB</color>
++    <color name="fx_mobile_surface_variant">#233731</color>
++    <color name="fx_mobile_on_surface_variant">#B7CEC4</color>
+     <color name="fx_mobile_surface_inverse">@color/novaGray30</color>
+     <color name="fx_mobile_on_surface_inverse">@color/novaGray80</color>
+     <color name="fx_mobile_error">@color/novaRed30</color>
+@@ -41,16 +41,16 @@
+     <color name="fx_mobile_on_warning">@color/novaGray80</color>
+     <color name="fx_mobile_warning_container">@color/novaYellow70</color>
+     <color name="fx_mobile_on_warning_container">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_outline">@color/novaGray45</color>
+-    <color name="fx_mobile_outline_variant">@color/novaGray60</color>
++    <color name="fx_mobile_outline">#7E9B8F</color>
++    <color name="fx_mobile_outline_variant">#344E44</color>
+     <color name="fx_mobile_sheet_outline">@color/novaGray75</color>
+-    <color name="fx_mobile_surface_bright">@color/novaGray65</color>
+-    <color name="fx_mobile_surface_dim">@color/novaGray85</color>
+-    <color name="fx_mobile_surface_container">@color/novaGray75</color>
+-    <color name="fx_mobile_surface_container_high">@color/novaGray70</color>
+-    <color name="fx_mobile_surface_container_highest">@color/novaGray65</color>
+-    <color name="fx_mobile_surface_container_low">@color/novaGray80</color>
+-    <color name="fx_mobile_surface_container_lowest">@color/novaGray85</color>
++    <color name="fx_mobile_surface_bright">#2A4038</color>
++    <color name="fx_mobile_surface_dim">#07100E</color>
++    <color name="fx_mobile_surface_container">#101F1B</color>
++    <color name="fx_mobile_surface_container_high">#192C25</color>
++    <color name="fx_mobile_surface_container_highest">#23372F</color>
++    <color name="fx_mobile_surface_container_low">#0E1B17</color>
++    <color name="fx_mobile_surface_container_lowest">#060E0B</color>
+     <color name="fx_mobile_surface_container_selected">@color/novaGray55</color>
+     <color name="fx_mobile_autofill_text">@color/novaVioletDesaturated30A55</color>
+     <color name="fx_mobile_selected_text">@color/novaGray45A80</color>
+--- a/mobile/android/fenix/app/src/main/res/values/colors.xml
++++ b/mobile/android/fenix/app/src/main/res/values/colors.xml
+@@ -4,25 +4,25 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <resources xmlns:tools="http://schemas.android.com/tools">
+     <!-- Material3 color variables -->
+-    <color name="fx_mobile_primary">@color/novaViolet70</color>
+-    <color name="fx_mobile_on_primary">@color/novaWhite</color>
+-    <color name="fx_mobile_primary_container">@color/novaViolet20</color>
+-    <color name="fx_mobile_on_primary_container">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_primary_inverse">@color/novaViolet20</color>
+-    <color name="fx_mobile_secondary">@color/novaGray50</color>
++    <color name="fx_mobile_primary">#006B60</color>
++    <color name="fx_mobile_on_primary">#FFFFFF</color>
++    <color name="fx_mobile_primary_container">#B9F4E7</color>
++    <color name="fx_mobile_on_primary_container">#063B35</color>
++    <color name="fx_mobile_primary_inverse">#62DFC5</color>
++    <color name="fx_mobile_secondary">#46605A</color>
+     <color name="fx_mobile_on_secondary">@color/novaWhite</color>
+-    <color name="fx_mobile_secondary_container">@color/novaVioletDesaturated10</color>
+-    <color name="fx_mobile_on_secondary_container">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_tertiary">@color/novaViolet50</color>
++    <color name="fx_mobile_secondary_container">#DCECE6</color>
++    <color name="fx_mobile_on_secondary_container">#18352E</color>
++    <color name="fx_mobile_tertiary">#285F86</color>
+     <color name="fx_mobile_on_tertiary">@color/novaWhite</color>
+-    <color name="fx_mobile_tertiary_container">@color/novaViolet0</color>
+-    <color name="fx_mobile_on_tertiary_container">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_background">@color/novaGray5</color>
+-    <color name="fx_mobile_on_background">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_surface">@color/novaGray5</color>
+-    <color name="fx_mobile_on_surface">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_surface_variant">@color/novaGray15</color>
+-    <color name="fx_mobile_on_surface_variant">@color/novaVioletDesaturated90A70</color>
++    <color name="fx_mobile_tertiary_container">#D4E9FF</color>
++    <color name="fx_mobile_on_tertiary_container">#12334D</color>
++    <color name="fx_mobile_background">#F3F8F6</color>
++    <color name="fx_mobile_on_background">#142622</color>
++    <color name="fx_mobile_surface">#F3F8F6</color>
++    <color name="fx_mobile_on_surface">#142622</color>
++    <color name="fx_mobile_surface_variant">#E0EBE6</color>
++    <color name="fx_mobile_on_surface_variant">#405950</color>
+     <color name="fx_mobile_surface_inverse">@color/novaGray70</color>
+     <color name="fx_mobile_on_surface_inverse">@color/novaWhite</color>
+     <color name="fx_mobile_error">@color/novaRed50</color>
+@@ -41,16 +41,16 @@
+     <color name="fx_mobile_on_warning">@color/novaWhite</color>
+     <color name="fx_mobile_warning_container">@color/novaYellow10</color>
+     <color name="fx_mobile_on_warning_container">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_outline">@color/novaGray45</color>
+-    <color name="fx_mobile_outline_variant">@color/novaGray15</color>
++    <color name="fx_mobile_outline">#657F75</color>
++    <color name="fx_mobile_outline_variant">#C1D4CC</color>
+     <color name="fx_mobile_sheet_outline">@color/novaGray5</color>
+-    <color name="fx_mobile_surface_bright">@color/novaWhite</color>
+-    <color name="fx_mobile_surface_dim">@color/novaGray15</color>
+-    <color name="fx_mobile_surface_container">@color/novaGray5</color>
+-    <color name="fx_mobile_surface_container_high">@color/novaGray10</color>
+-    <color name="fx_mobile_surface_container_highest">@color/novaGray15</color>
+-    <color name="fx_mobile_surface_container_low">@color/novaGray0</color>
+-    <color name="fx_mobile_surface_container_lowest">@color/novaWhite</color>
++    <color name="fx_mobile_surface_bright">#FFFFFF</color>
++    <color name="fx_mobile_surface_dim">#DCE7E2</color>
++    <color name="fx_mobile_surface_container">#EDF4F0</color>
++    <color name="fx_mobile_surface_container_high">#E5EFE9</color>
++    <color name="fx_mobile_surface_container_highest">#DCE8E1</color>
++    <color name="fx_mobile_surface_container_low">#F7FBF9</color>
++    <color name="fx_mobile_surface_container_lowest">#FFFFFF</color>
+     <color name="fx_mobile_surface_container_selected">@color/novaGray25</color>
+     <color name="fx_mobile_autofill_text">@color/novaVioletDesaturated30</color>
+     <color name="fx_mobile_selected_text">@color/novaGray35</color>
+@@ -95,25 +95,25 @@
+     <!-- Private theme color variables -->
+ 
+     <!-- Material3 color variables -->
+-    <color name="fx_mobile_private_primary">@color/novaViolet20</color>
+-    <color name="fx_mobile_private_on_primary">@color/novaGray80</color>
+-    <color name="fx_mobile_private_primary_container">@color/novaViolet60</color>
+-    <color name="fx_mobile_private_on_primary_container">@color/novaVioletDesaturated0</color>
++    <color name="fx_mobile_private_primary">#FFCC80</color>
++    <color name="fx_mobile_private_on_primary">#402600</color>
++    <color name="fx_mobile_private_primary_container">#59421D</color>
++    <color name="fx_mobile_private_on_primary_container">#FFE4B8</color>
+     <color name="fx_mobile_private_primary_inverse">@color/novaViolet70</color>
+-    <color name="fx_mobile_private_secondary">@color/novaGray20</color>
++    <color name="fx_mobile_private_secondary">#D5C4A9</color>
+     <color name="fx_mobile_private_on_secondary">@color/novaGray80</color>
+-    <color name="fx_mobile_private_secondary_container">@color/novaViolet70</color>
+-    <color name="fx_mobile_private_on_secondary_container">@color/novaVioletDesaturated0</color>
++    <color name="fx_mobile_private_secondary_container">#443B2D</color>
++    <color name="fx_mobile_private_on_secondary_container">#F1E2CA</color>
+     <color name="fx_mobile_private_tertiary">@color/novaViolet30</color>
+     <color name="fx_mobile_private_on_tertiary">@color/novaGray80</color>
+     <color name="fx_mobile_private_tertiary_container">@color/novaVioletDesaturated90</color>
+     <color name="fx_mobile_private_on_tertiary_container">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_private_background">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_private_on_background">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_private_surface">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_private_on_surface">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_private_surface_variant">@color/novaVioletDesaturated80</color>
+-    <color name="fx_mobile_private_on_surface_variant">@color/novaVioletDesaturated0A70</color>
++    <color name="fx_mobile_private_background">#17130E</color>
++    <color name="fx_mobile_private_on_background">#F1E9DB</color>
++    <color name="fx_mobile_private_surface">#17130E</color>
++    <color name="fx_mobile_private_on_surface">#F1E9DB</color>
++    <color name="fx_mobile_private_surface_variant">#393126</color>
++    <color name="fx_mobile_private_on_surface_variant">#D4C5AD</color>
+     <color name="fx_mobile_private_surface_inverse">@color/novaGray30</color>
+     <color name="fx_mobile_private_on_surface_inverse">@color/novaGray80</color>
+     <color name="fx_mobile_private_error">@color/novaRed30</color>
+@@ -132,16 +132,16 @@
+     <color name="fx_mobile_private_on_warning">@color/novaGray80</color>
+     <color name="fx_mobile_private_warning_container">@color/novaYellow70</color>
+     <color name="fx_mobile_private_on_warning_container">@color/novaVioletDesaturated0</color>
+-    <color name="fx_mobile_private_outline">@color/novaGray45</color>
+-    <color name="fx_mobile_private_outline_variant">#FF332752</color>
++    <color name="fx_mobile_private_outline">#AA9474</color>
++    <color name="fx_mobile_private_outline_variant">#514531</color>
+     <color name="fx_mobile_private_sheet_outline">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_private_surface_bright">@color/novaVioletDesaturated80</color>
+-    <color name="fx_mobile_private_surface_dim">#FF0D0321</color>
+-    <color name="fx_mobile_private_surface_container">@color/novaVioletDesaturated90</color>
+-    <color name="fx_mobile_private_surface_container_high">#FF20163A</color>
+-    <color name="fx_mobile_private_surface_container_highest">@color/novaVioletDesaturated80</color>
+-    <color name="fx_mobile_private_surface_container_low">#FF11042B</color>
+-    <color name="fx_mobile_private_surface_container_lowest">#FF0D0321</color>
++    <color name="fx_mobile_private_surface_bright">#40372B</color>
++    <color name="fx_mobile_private_surface_dim">#100D08</color>
++    <color name="fx_mobile_private_surface_container">#211B13</color>
++    <color name="fx_mobile_private_surface_container_high">#2C2419</color>
++    <color name="fx_mobile_private_surface_container_highest">#393023</color>
++    <color name="fx_mobile_private_surface_container_low">#1C160F</color>
++    <color name="fx_mobile_private_surface_container_lowest">#0E0B06</color>
+     <color name="fx_mobile_private_surface_container_selected">@color/novaVioletDesaturated60</color>
+     <color name="fx_mobile_private_autofill_text">@color/novaVioletDesaturated30A55</color>
+     <color name="fx_mobile_private_selected_text">@color/novaGray45A81</color>
+--- a/mobile/android/fenix/app/src/main/res/values/dimens.xml
++++ b/mobile/android/fenix/app/src/main/res/values/dimens.xml
+@@ -16,7 +16,7 @@
+     <dimen name="library_item_height">56dp</dimen>
+     <dimen name="library_item_icon_margin_horizontal">16dp</dimen>
+     <dimen name="history_favicon_width_height">48dp</dimen>
+-    <dimen name="tab_corner_radius">8dp</dimen>
++    <dimen name="tab_corner_radius">16dp</dimen>
+     <dimen name="material_dialog_corner_radius">28dp</dimen>"
+     <dimen name="preference_icon_drawable_size">24dp</dimen>
+     <dimen name="search_bar_search_engine_icon_padding">12dp</dimen>
+@@ -55,7 +55,7 @@
+     <dimen name="tracking_protection_item_margin_bottom">18dp</dimen>
+ 
+     <!-- Bottom Sheet Fragment card -->
+-    <dimen name="bottom_sheet_corner_radius">8dp</dimen>
++    <dimen name="bottom_sheet_corner_radius">24dp</dimen>
+     <dimen name="bottom_sheet_corner_radius_28dp">28dp</dimen>
+     <dimen name="bottom_sheet_handle_height">4dp</dimen>
+     <dimen name="bottom_sheet_handle_top_margin">8dp</dimen>
+@@ -73,7 +73,6 @@
+     <!-- Home Fragment -->
+     <dimen name="home_item_horizontal_margin">16dp</dimen>
+     <dimen name="home_item_vertical_margin">8dp</dimen>
+-    <dimen name="wordmark_text_height">18dp</dimen>
+ 
+     <!-- Browser Fragment -->
+     <!--The size of the gap between the tab preview and content layout.-->
+--- a/mobile/android/fenix/app/src/main/res/values/static_strings.xml
++++ b/mobile/android/fenix/app/src/main/res/values/static_strings.xml
+@@ -4,8 +4,8 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <resources xmlns:tools="http://schemas.android.com/tools">
+     <!-- Name of the application -->
+-    <string name="app_name" translatable="false">Firefox Fenix</string>
+-    <string name="firefox" translatable="false">Firefox</string>
++    <string name="app_name" translatable="false">VEIL</string>
++    <string name="firefox" translatable="false">VEIL</string>
+ 
+     <!-- Preference for developers -->
+     <string name="preference_leakcanary" translatable="false">LeakCanary</string>
+@@ -446,7 +446,7 @@
+     <string name="customize_toggle_weather" translatable="false">Weather</string>
+ 
+     <!--  Firefox brand name  -->
+-    <string name="app_name_firefox" tools:ignore="BrandUsage">Firefox</string>
++    <string name="app_name_firefox" tools:ignore="BrandUsage">VEIL</string>
+ 
+     <!--  Proper name for the Wrexham wallpaper section title. As it is a brand name we do not want it translated.-->
+     <string name="wallpaper_wrexham_title" translatable="false">Wrexham A.F.C.</string>
+--- a/mobile/android/fenix/app/src/main/res/xml/customization_preferences.xml
++++ b/mobile/android/fenix/app/src/main/res/xml/customization_preferences.xml
+@@ -20,12 +20,12 @@
+         android:title="@string/preferences_theme"
+         app:iconSpaceReserved="false">
+         <org.mozilla.fenix.settings.RadioButtonPreference
+-            android:defaultValue="@bool/underAPI28"
++            android:defaultValue="false"
+             android:key="@string/pref_key_light_theme"
+             android:title="@string/preference_light_theme" />
+ 
+         <org.mozilla.fenix.settings.RadioButtonPreference
+-            android:defaultValue="false"
++            android:defaultValue="true"
+             android:key="@string/pref_key_dark_theme"
+             android:title="@string/preference_dark_theme" />
+ 
+@@ -42,7 +42,7 @@
+             app:isPreferenceVisible="@bool/underAPI28" />
+ 
+         <org.mozilla.fenix.settings.RadioButtonPreference
+-            android:defaultValue="@bool/API28"
++            android:defaultValue="false"
+             android:key="@string/pref_key_follow_device_theme"
+             android:title="@string/preference_follow_device_theme"
+             app:isPreferenceVisible="@bool/API28" />
+--- a/mobile/android/fenix/app/src/main/res/xml/data_extraction_rules.xml
++++ b/mobile/android/fenix/app/src/main/res/xml/data_extraction_rules.xml
+@@ -9,6 +9,10 @@
+         <exclude domain="database" path="."/>
+         <exclude domain="sharedpref" path="."/>
+         <exclude domain="external" path="."/>
++        <exclude domain="device_root" path="."/>
++        <exclude domain="device_file" path="."/>
++        <exclude domain="device_database" path="."/>
++        <exclude domain="device_sharedpref" path="."/>
+     </cloud-backup>
+     <device-transfer>
+         <exclude domain="root" path="."/>
+@@ -16,5 +20,9 @@
+         <exclude domain="database" path="."/>
+         <exclude domain="sharedpref" path="."/>
+         <exclude domain="external" path="."/>
++        <exclude domain="device_root" path="."/>
++        <exclude domain="device_file" path="."/>
++        <exclude domain="device_database" path="."/>
++        <exclude domain="device_sharedpref" path="."/>
+     </device-transfer>
+ </data-extraction-rules>
+--- a/mobile/android/fenix/app/src/nightly/res/values/dimens.xml
++++ b/mobile/android/fenix/app/src/nightly/res/values/dimens.xml
+@@ -4,6 +4,5 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <resources>
+     <!-- Home Fragment -->
+-    <dimen name="wordmark_text_height">28dp</dimen>
+     <dimen name="wordmark_text_margin_top">12dp</dimen>
+ </resources>
+--- a/mobile/android/fenix/app/src/nightly/res/values/static_strings.xml
++++ b/mobile/android/fenix/app/src/nightly/res/values/static_strings.xml
+@@ -4,5 +4,5 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <resources>
+     <!-- Name of the application -->
+-    <string name="app_name" translatable="false">Firefox Nightly</string>
++    <string name="app_name" translatable="false">VEIL</string>
+ </resources>
+--- a/mobile/android/fenix/app/src/release/AndroidManifest.xml
++++ b/mobile/android/fenix/app/src/release/AndroidManifest.xml
+@@ -3,13 +3,6 @@
+    - License, v. 2.0. If a copy of the MPL was not distributed with this
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ 
+-<!--
+-  sharedUserId: This release type is meant to replace Firefox (Release channel) and therefore needs to inherit
+-                its sharedUserId for all eternity. Shipping an app update without sharedUserId can have
+-                fatal consequences. For example see:
+-                - https://issuetracker.google.com/issues/36924841
+-                - https://issuetracker.google.com/issues/36905922
+--->
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:sharedUserId="${sharedUserId}">
++<!-- VEIL uses its own application identity and does not share a Mozilla UID. -->
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ </manifest>
+--- a/mobile/android/fenix/app/src/release/res/values/static_strings.xml
++++ b/mobile/android/fenix/app/src/release/res/values/static_strings.xml
+@@ -4,5 +4,5 @@
+    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+ <resources>
+     <!-- Name of the application -->
+-    <string name="app_name" translatable="false">Firefox</string>
++    <string name="app_name" translatable="false">VEIL</string>
+ </resources>
+--- a/mobile/android/fenix/app/src/test/java/org/mozilla/fenix/utils/SettingsTest.kt
++++ b/mobile/android/fenix/app/src/test/java/org/mozilla/fenix/utils/SettingsTest.kt
+@@ -381,9 +381,9 @@
+ 
+     @Test
+     fun shouldUseDarkTheme() {
+-        // When just created
+-        // Then
+-        assertFalse(settings.shouldUseDarkTheme)
++        assertTrue(settings.shouldUseDarkTheme)
++        settings.shouldUseDarkTheme = false
++        assertFalse(Settings(testContext).shouldUseDarkTheme)
+     }
+ 
+     @Test
+@@ -964,8 +964,18 @@
+     }
+ 
+     @Test
+-    fun `GIVEN unset user preferences THEN https-only is disabled`() {
+-        assertFalse(settings.shouldUseHttpsOnly)
++    fun `GIVEN unset user preferences THEN https-only is enabled and can be changed`() {
++        assertTrue(settings.shouldUseHttpsOnly)
++        assertEquals(ENABLED, settings.getHttpsOnlyMode())
++        settings.shouldUseHttpsOnly = false
++        assertEquals(DISABLED, Settings(testContext).getHttpsOnlyMode())
++    }
++
++    @Test
++    fun `VEIL defaults to a bottom toolbar and preserves a stored top toolbar choice`() {
++        assertTrue(settings.shouldUseBottomToolbar)
++        settings.shouldUseBottomToolbar = false
++        assertFalse(Settings(testContext).shouldUseBottomToolbar)
+     }
+ 
+     @Test

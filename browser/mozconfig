@@ -1,0 +1,8 @@
+ac_add_options --enable-project=mobile/android
+ac_add_options --enable-artifact-builds
+ac_add_options --target=aarch64
+ac_add_options --enable-android-subproject=fenix
+ac_add_options --with-android-sdk="${ANDROID_HOME:?Set ANDROID_HOME}"
+ac_add_options --with-java-bin-path="${JAVA_HOME:?Set JAVA_HOME}/bin"
+mk_add_options MOZ_OBJDIR=./objdir-frontend
+mk_add_options MOZ_MAKE_FLAGS="-j2"
