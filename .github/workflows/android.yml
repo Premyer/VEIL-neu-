@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: veil-android-${{ github.ref }}
@@ -49,8 +49,24 @@ jobs:
           cmdline-tools-version: '16111833'
           packages: 'platform-tools'
 
-      - name: Install required Android SDK packages
-        run: sdkmanager 'platforms;android-37.2' 'build-tools;37.0.0'
+      - name: Install required Android SDK packages and link cmdline-tools
+        run: |
+          sdkmanager 'platforms;android-37.2' 'build-tools;37.0.0'
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          if [ -d "$SDK_ROOT/cmdline-tools" ]; then
+            cd "$SDK_ROOT/cmdline-tools"
+            echo "Current cmdline-tools:"
+            ls -la
+            FIRST_TOOL=$(ls -1 | grep -v '23.0' | head -n 1)
+            if [ -n "$FIRST_TOOL" ] && [ ! -e "23.0" ]; then
+              sudo ln -s "$FIRST_TOOL" 23.0 || ln -s "$FIRST_TOOL" 23.0
+            fi
+            if [ -n "$FIRST_TOOL" ] && [ ! -e "latest" ]; then
+              sudo ln -s "$FIRST_TOOL" latest || ln -s "$FIRST_TOOL" latest
+            fi
+            echo "Updated cmdline-tools:"
+            ls -la
+          fi
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
@@ -68,8 +84,17 @@ jobs:
           git rev-parse HEAD > apk-output/VEIL_SOURCE_COMMIT.txt
           cp browser/upstream.json apk-output/FIREFOX_SOURCE.json
 
-      - name: Upload verified debug APK
+      - name: Create GitHub Release with APK
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v0.2.0-build-${{ github.run_number }}"
+          gh release create "$TAG" apk-output/*             --title "VEIL 0.2.0 (Build #${{ github.run_number }})"             --notes "Automatischer APK Build aus Commit ${{ github.sha }}"             --target "${{ github.sha }}" || true
+
+      - name: Upload verified debug APK artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: VEIL-arm64-debug-${{ github.run_number }}-${{ github.sha }}
           path: apk-output/
@@ -78,6 +103,7 @@ jobs:
 
       - name: Upload diagnostics
         if: ${{ always() }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: VEIL-diagnostics-${{ github.run_number }}-${{ github.sha }}
