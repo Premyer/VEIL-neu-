@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """Export only the ARM64 APK corresponding to the configured native target."""
 
-VERSION = "0.2.0"
-VARIANTS = ("debug", "release")
-
 import argparse
 import hashlib
 import json
@@ -12,10 +9,8 @@ import shutil
 import zipfile
 
 
-def export(source, destination, variant="debug"):
-    if variant not in VARIANTS:
-        raise SystemExit(f"Unknown variant: {variant}")
-    directory = source / f"objdir-frontend/gradle/build/mobile/android/fenix/app/outputs/apk/{variant}"
+def export(source, destination):
+    directory = source / "objdir-frontend/gradle/build/mobile/android/fenix/app/outputs/apk/debug"
     metadata = json.loads((directory / "output-metadata.json").read_text())
     if metadata["applicationId"] != "de.veil.browser":
         raise SystemExit("Refusing to export an APK with an unexpected application id.")
@@ -33,9 +28,7 @@ def export(source, destination, variant="debug"):
             if required not in package.namelist():
                 raise SystemExit(f"Missing native browser library: {required}")
     destination.mkdir(parents=True, exist_ok=True)
-    # Release builds are unsigned until browser/sign_apk.py has run.
-    suffix = "debug" if variant == "debug" else "release-unsigned"
-    output = destination / f"VEIL-{VERSION}-arm64-{suffix}.apk"
+    output = destination / "VEIL-0.2.0-arm64-debug.apk"
     shutil.copy2(apk, output)
     with output.open("rb") as stream:
         checksum = hashlib.file_digest(stream, "sha256").hexdigest()
@@ -48,6 +41,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
     parser.add_argument("destination", type=Path)
-    parser.add_argument("--variant", choices=VARIANTS, default="debug")
     args = parser.parse_args()
-    export(args.source.resolve(), args.destination.resolve(), args.variant)
+    export(args.source.resolve(), args.destination.resolve())

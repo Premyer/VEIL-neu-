@@ -58,29 +58,6 @@ debug key; its APK will not update a locally signed installation. The delivered
 0.2.0 APK uses the existing prototype debug key. Keys are not
 committed to this repository.
 
-## Release signing
-
-`VEIL_VARIANT=release bash browser/build.sh` builds an **unsigned** release APK
-(`VEIL-0.2.0-arm64-release-unsigned.apk`). `browser/sign_apk.py` then runs
-`zipalign` (16 KB alignment) and `apksigner`, verifies the result, refuses debug
-certificates and writes `.sha256` and `.cert-sha256` files. Keystore and
-passwords come only from environment variables, never from arguments:
-
-```sh
-keytool -genkeypair -v -keystore veil-release.jks -alias veil \
-  -keyalg RSA -keysize 4096 -validity 10000
-export VEIL_KEYSTORE=$PWD/veil-release.jks VEIL_KEYSTORE_PASSWORD=... VEIL_KEY_ALIAS=veil
-python3 browser/sign_apk.py build/outputs/apk/VEIL-0.2.0-arm64-release-unsigned.apk build/outputs/apk/signed
-```
-
-`.github/workflows/release.yml` does this for tags `v0.2.0` (the tag must match the
-app version) and manual runs. Set the repository secrets `VEIL_KEYSTORE_BASE64`
-(`base64 -w0 veil-release.jks`), `VEIL_KEYSTORE_PASSWORD`, `VEIL_KEY_ALIAS` and,
-if different, `VEIL_KEY_PASSWORD`. A tag creates a **draft** GitHub release for
-manual review. Back up the keystore: losing it makes updates impossible, and the
-release key differs from the debug key, so debug installations must be uninstalled
-first (app data is removed).
-
 ## External services and migration limits
 
 - WebPush and push-triggered “Send tab” require VEIL's own Firebase configuration
@@ -95,13 +72,11 @@ first (app data is removed).
 
 ## Validation status
 
-The native Gecko and ARM64 APK builds, build-tool tests, 133 Android
+The native Gecko and ARM64 APK builds, five build-tool tests, 133 Android
 theme/settings tests and APK signature/package checks passed locally. Android
 lint reports no new issues; four existing warnings are filtered by the unchanged
-upstream baseline. Beta/release manifest identities were validated. The release build path
-(`assembleRelease`, R8, signing, `release.yml`) has only been covered by the
-build-tool unit tests (eight in total); it has not been run end to end, and neither
-has remote CI.
+upstream baseline. Beta/release manifest identities were validated; full
+beta/release APK builds and remote CI were not exercised.
 Device execution remains unverified: this sandbox has no KVM acceleration, and
 the earlier software-emulator attempt did not become ready.
 

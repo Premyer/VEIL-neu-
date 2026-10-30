@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import apply_overlay
 import export_apk
 import fetch_source
-import sign_apk
 
 
 class BuildToolsTest(unittest.TestCase):
@@ -123,71 +122,6 @@ class BuildToolsTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "Missing native browser library"):
             export_apk.export(self.root, self.root / "output")
         self.assertFalse((self.root / "output").exists())
-
-    def test_export_release_variant_is_named_unsigned(self):
-        directory = self.root / "objdir-frontend/gradle/build/mobile/android/fenix/app/outputs/apk/release"
-        directory.mkdir(parents=True)
-        apk = directory / "release.apk"
-        with zipfile.ZipFile(apk, "w") as package:
-            package.writestr("lib/arm64-v8a/libxul.so", b"x")
-            package.writestr("lib/arm64-v8a/libmozglue.so", b"x")
-        (directory / "output-metadata.json").write_text(json.dumps({"applicationId": "de.veil.browser", "elements": [
-            {"filters": [{"filterType": "ABI", "value": "arm64-v8a"}], "outputFile": apk.name}]}))
-        with contextlib.redirect_stdout(io.StringIO()):
-            export_apk.export(self.root, self.root / "output", "release")
-        self.assertTrue((self.root / "output/VEIL-0.2.0-arm64-release-unsigned.apk").is_file())
-        with self.assertRaisesRegex(SystemExit, "Unknown variant"):
-            export_apk.export(self.root, self.root / "output", "nightly")
-
-    def signing_fixture(self):
-        tools = self.root / "sdk/build-tools/37.0.0"
-        tools.mkdir(parents=True)
-        for name in ("zipalign", "apksigner"):
-            (tools / name).write_text("")
-        keystore = self.root / "release.jks"
-        keystore.write_bytes(b"k")
-        unsigned = self.root / "VEIL-0.2.0-arm64-release-unsigned.apk"
-        unsigned.write_bytes(b"apk")
-        environ = {"ANDROID_HOME": str(self.root / "sdk"), "VEIL_KEYSTORE": str(keystore),
-                   "VEIL_KEYSTORE_PASSWORD": "secret-store", "VEIL_KEY_ALIAS": "veil"}
-        return unsigned, environ
-
-    def test_sign_requires_configuration_and_release_input(self):
-        unsigned, environ = self.signing_fixture()
-        with self.assertRaisesRegex(SystemExit, "Missing signing configuration: VEIL_KEY_ALIAS"):
-            sign_apk.sign(unsigned, self.root / "out", {k: v for k, v in environ.items() if k != "VEIL_KEY_ALIAS"})
-        wrong = self.root / "VEIL-0.2.0-arm64-debug.apk"
-        wrong.write_bytes(b"apk")
-        with self.assertRaisesRegex(SystemExit, "release-unsigned"):
-            sign_apk.sign(wrong, self.root / "out", environ)
-
-    def test_sign_keeps_passwords_out_of_arguments_and_rejects_debug_cert(self):
-        unsigned, environ = self.signing_fixture()
-        destination = self.root / "out"
-        calls = []
-
-        def fake_run(command, **kwargs):
-            calls.append(command)
-            if "--out" in command:
-                Path(command[command.index("--out") + 1]).write_bytes(b"signed")
-            if "verify" in command:
-                return subprocess.CompletedProcess(command, 0, stdout=self.verify_output, stderr="")
-            return subprocess.CompletedProcess(command, 0)
-
-        self.verify_output = "Signer #1 certificate SHA-256 digest: " + "ab" * 32 + "\n"
-        with patch.object(sign_apk.subprocess, "run", fake_run), contextlib.redirect_stdout(io.StringIO()):
-            result = sign_apk.sign(unsigned, destination, environ)
-        self.assertEqual("VEIL-0.2.0-arm64-release.apk", result.name)
-        self.assertFalse(any("secret-store" in part for call in calls for part in call))
-        self.assertIn("env:VEIL_KEYSTORE_PASSWORD", sum(calls, []))
-        self.assertEqual("ab" * 32 + "\n", (destination / "VEIL-0.2.0-arm64-release.apk.cert-sha256").read_text())
-        self.assertFalse((destination / "VEIL-0.2.0-arm64-release.apk.aligned").exists())
-
-        self.verify_output = "Signer #1 certificate DN: CN=Android Debug, O=Android\n"
-        with patch.object(sign_apk.subprocess, "run", fake_run), contextlib.redirect_stdout(io.StringIO()):
-            with self.assertRaisesRegex(SystemExit, "debug certificate"):
-                sign_apk.sign(unsigned, destination, environ)
-        self.assertFalse(result.exists())
 
 
 if __name__ == "__main__":

@@ -7,18 +7,9 @@ veil_output="${VEIL_OUTPUT_DIR:-$veil_root/build/outputs/apk}"
 : "${JAVA_HOME:?Set JAVA_HOME to JDK 17}"
 : "${ANDROID_HOME:?Set ANDROID_HOME to your Android SDK}"
 
-# VEIL_VARIANT=release builds an unsigned release APK; sign it with browser/sign_apk.py.
-veil_variant="${VEIL_VARIANT:-debug}"
-if [[ "${1:-}" != "" && "${1:-}" != "--setup" ]] || [[ "$veil_variant" != "debug" && "$veil_variant" != "release" ]]; then
-    echo "Usage: [VEIL_VARIANT=debug|release] bash browser/build.sh [--setup]" >&2
+if [[ "${1:-}" != "" && "${1:-}" != "--setup" ]]; then
+    echo "Usage: bash browser/build.sh [--setup]" >&2
     exit 2
-fi
-if [[ "$veil_variant" == "release" ]]; then
-    veil_gradle_task="fenix:assembleRelease"
-    veil_gradle_heap="-Xmx4g"
-else
-    veil_gradle_task="fenix:assembleDebug"
-    veil_gradle_heap="-Xmx3g"
 fi
 
 python3 "$veil_root/browser/fetch_source.py" "$veil_source"
@@ -50,7 +41,7 @@ fi
 python3 "$veil_root/browser/apply_overlay.py" "$veil_source"
 run_step configure ./mach configure
 run_step native-artifacts ./mach build
-run_step veil-apk ./mach gradle "$veil_gradle_task" --no-daemon --max-workers=2 --console=plain \
-    "-Dorg.gradle.jvmargs=$veil_gradle_heap -Xms256m -XX:MaxMetaspaceSize=1g" \
+run_step veil-apk ./mach gradle fenix:assembleDebug --no-daemon --max-workers=2 --console=plain \
+    '-Dorg.gradle.jvmargs=-Xmx3g -Xms256m -XX:MaxMetaspaceSize=1g' \
     -Pkotlin.compiler.execution.strategy=in-process -PdisableLeakCanary
-python3 "$veil_root/browser/export_apk.py" "$veil_source" "$veil_output" --variant "$veil_variant"
+python3 "$veil_root/browser/export_apk.py" "$veil_source" "$veil_output"
