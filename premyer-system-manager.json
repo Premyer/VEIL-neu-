@@ -1,0 +1,31 @@
+{
+  "manager": "Premyer System Manager",
+  "repository": "Premyer/VEIL-neu-",
+  "project_role": "VEIL project",
+  "control_repository": "Premyer/Premyer-Code-Agent-",
+  "runtime": "Codex Cloud task workspace",
+  "mode": "approval",
+  "default_access": "read-only",
+  "allowed_operations": [
+    "repository inspection",
+    "local tests",
+    "build and dependency analysis",
+    "proposed changes in isolated task workspace"
+  ],
+  "remote_write_policy": "Explicit per-action approval required; no unattended remote writes",
+  "secrets_policy": "No secrets in source, manifests, logs, prompts, or build artifacts; use scoped managed secrets",
+  "privacy_policy": "Apply browser privacy rules: no browsing-history export, credential collection, or private-session telemetry.",
+  "forbidden_without_explicit_approval": [
+    "push",
+    "pull request creation or update",
+    "merge",
+    "release",
+    "deployment",
+    "workflow dispatch",
+    "repository settings or permission changes",
+    "device enrollment or remote shell",
+    "firewall or network configuration changes",
+    "destructive remote operations"
+  ],
+  "telemetry": "Operational metadata only"
+}
